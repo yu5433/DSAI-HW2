@@ -109,8 +109,8 @@ def modelPredict(testing_data):
     print('predict value: ', val_y[:, 0])
 
     # 方均跟差、視覺化.
-    plt.plot(val_y[:, 0])
-    plt.plot(inv_y[:, 0])
+    plt.plot(val_y[:, 0], label='real')
+    plt.plot(inv_y[:, 0], label='predict')
     plt.show()
 
     rmse = np.sqrt(mean_squared_error(val_y[0, 0:9], inv_y[0, 0:9]))
@@ -231,7 +231,7 @@ if __name__ == '__main__':
     testing_data = scaler.fit_transform(training_data)
 
     # Train or Test the Model.
-    # modelTraining(training_data)
+    modelTraining(training_data)
     # modelPredict(testing_data)
     howToUse(training, testing, args.output)
     """
