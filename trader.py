@@ -74,8 +74,8 @@ def modelTraining(training_data):
     model.compile(loss='mae', optimizer='adam')
     print(model.summary())
 
-    tmp_str = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
-    tmp_str += '-model.h5'
+    # tmp_str = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
+    tmp_str = 'model.h5'
     history = model.fit(train_x, train_y, epochs=100, batch_size=72, validation_data=(
         test_x, test_y), verbose=2, shuffle=False)
     model.save(tmp_str)
@@ -90,7 +90,7 @@ def modelPredict(testing_data):
     val_x, val_y = testing_data[-30:, :-10], testing_data[-30:, -10:]
     val_x = val_x.reshape((val_x.shape[0], 1, val_x.shape[1]))
     print(type(val_x))
-    model = load_model('2022-04-25-01-28-model.h5')
+    model = load_model('model.h5')
     for i in range(len(val_x)):
         # print('model predict')
         # print(val_x[:i+1, :, :])
@@ -113,7 +113,7 @@ def modelPredict(testing_data):
     plt.plot(inv_y[:, 0])
     plt.show()
 
-    rmse = np.sqrt(mean_squared_error(val_y[:, 0:9], inv_y[:, 0:9]))
+    rmse = np.sqrt(mean_squared_error(val_y[0, 0:9], inv_y[0, 0:9]))
     print(rmse)
 
 
@@ -133,7 +133,7 @@ def howToUse(training_data, testing_data, output):
     input = new_data.reshape(new_data.shape[0], 1, new_data.shape[1])
     # print(input.shape)
 
-    model = load_model('2022-04-25-01-28-model.h5')
+    model = load_model('model.h5')
 
     flag = 0
     signal_buy = []
