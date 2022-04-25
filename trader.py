@@ -1,3 +1,4 @@
+from argparse import Action
 from asyncio.base_tasks import _task_print_stack
 from cgi import print_arguments
 import imp
@@ -116,7 +117,7 @@ def modelPredict(testing_data):
     print(rmse)
 
 
-def howToUse(training_data, testing_data):
+def howToUse(training_data, testing_data, output):
     plt.plot(testing_data[0], color='b')
     new_data = np.concatenate([training_data, testing_data])
     # ori_data是沒有動過的
@@ -134,11 +135,10 @@ def howToUse(training_data, testing_data):
 
     model = load_model('2022-04-25-01-28-model.h5')
 
-    flag = -1
+    flag = 0
     signal_buy = []
     signal_sell = []
-    short_line = []
-    long_line = []
+    action = []
 
     # 一筆一筆吃testing data
     # 我們先打包完ㄌ，但沒有吃到後面的資料應該不算作弊八==
@@ -157,56 +157,41 @@ def howToUse(training_data, testing_data):
         predict = inv_y[0, :10]
 
         # 從這裡開始是羅寫的
-        # 短平均 6天
-        tmp = ori_data[(-(len(testing_data))+i-3):(-(len(testing_data))+i+1)]
-        tmp = np.delete(tmp, [1, 2, 3], 1)
-        ttmp = predict[0:2]
-        tmp = np.concatenate((tmp, np.reshape(ttmp, (2, 1))))
-        short = np.mean(tmp)
-        short_line.append(short)
-
-        # 長平均 19天
-        tmp = ori_data[(-(len(testing_data))+i-9):(-(len(testing_data))+i+1)]
-        tmp = np.delete(tmp, [1, 2, 3], 1)
-        ttmp = predict[0:9]
-        tmp = np.concatenate((tmp, np.reshape(ttmp, (9, 1))))
-        long = np.mean(tmp)
-        long_line.append(long)
-
-        print(i)
-        print('short,long')
-        print(short, long)
+        p_mean = np.mean(predict)
 
         # 當天
         now = ori_data[-(len(testing_data))+i]
         now = now[0]
 
         # 判斷買賣
-        if short > long:
-            if flag != 1:  # 之前的短期未超過長期，即黃金交叉
+        if p_mean > now:  # buy
+            if flag != 1:
                 signal_buy.append(now)
                 signal_sell.append(np.nan)
-                flag = 1
+                flag = flag+1
+                action.append(1)
             else:
                 signal_buy.append(np.nan)
                 signal_sell.append(np.nan)
-        elif long > short:
-            if flag != 0:  # 之前的長期未超過短期，即死亡交叉
+                action.append(0)
+        elif now > p_mean:
+            if flag != -1:
                 signal_buy.append(np.nan)
                 signal_sell.append(now)
-                flag = 0
+                flag = flag-1
+                action.append(-1)
             else:
                 signal_buy.append(np.nan)
                 signal_sell.append(np.nan)
+                action.append(0)
         else:
             signal_buy.append(np.nan)
             signal_sell.append(np.nan)
+            action.append(0)
     print('buy and sell')
     print(signal_buy)
     print(signal_sell)
-    plt.plot(short_line, color='c')
-    plt.plot(long_line, color='r')
-    plt.show()
+    np.savetxt(output, action, delimiter=",", fmt='% s')
 
 
 if __name__ == '__main__':
@@ -248,7 +233,7 @@ if __name__ == '__main__':
     # Train or Test the Model.
     # modelTraining(training_data)
     # modelPredict(testing_data)
-    howToUse(training, testing)
+    howToUse(training, testing, args.output)
     """
     testing_data = load_data(args.testing)
     training_data = load_data(args.training)
