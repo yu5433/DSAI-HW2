@@ -10,6 +10,7 @@ from tkinter import OUTSIDE
 import pandas as pd
 import numpy as np
 from pyparsing import col
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.python.keras.models import Sequential, load_model
@@ -55,9 +56,9 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 
 
 def modelTraining(training_data):
-    train_x, train_y = training_data[:-30, :-10], training_data[:-30, -10:]
+    train_x, train_y = training_data[:-50, :-10], training_data[:-50, -10:]
     train_x = train_x.reshape((train_x.shape[0], 1, train_x.shape[1]))
-    test_x, test_y = training_data[-30:, :-10], training_data[-30:, -10:]
+    test_x, test_y = training_data[-50:-30, :-10], training_data[-50:-30, -10:]
     test_x = test_x.reshape((test_x.shape[0], 1, test_x.shape[1]))
     print(train_x.shape)
     print(train_y.shape)
@@ -85,13 +86,13 @@ def modelTraining(training_data):
 
 
 def modelPredict(testing_data):
-    val_x, val_y = testing_data[:, :-10], testing_data[:, -10:]
+    val_x, val_y = testing_data[-30:, :-10], testing_data[-30:, -10:]
     val_x = val_x.reshape((val_x.shape[0], 1, val_x.shape[1]))
-
-    model = load_model('2022-04-22-17-29-model.h5')
+    print(type(val_x))
+    model = load_model('2022-04-25-01-28-model.h5')
     for i in range(len(val_x)):
-        print('model predict')
-        print(val_x[:i+1, :, :])
+        # print('model predict')
+        # print(val_x[:i+1, :, :])
         y = model.predict(val_x[:i+1, :, :])
 
     y = y.reshape(len(y), 10)
@@ -114,9 +115,41 @@ def modelPredict(testing_data):
     rmse = np.sqrt(mean_squared_error(val_y[:, 0:9], inv_y[:, 0:9]))
     print(rmse)
 
+def howToUse(training_data, testing_data):
+    new_data = np.concatenate([training_data, testing_data])
+    # print(training_data.shape) # 1488 (0-1487)
+    # print(testing_data.shape) # 20 (0-19)
+    new_data = new_data[-25:]
+    new_data = series_to_supervised(new_data, 6, 0)
+    new_data = scaler.fit_transform(new_data)
+
+    # 打包成model需要的格式，new_data的第一筆資料是training最後5比+testing的第一筆.
+    # 因為不用結果可以直接丟到model裡去predict
+    input = new_data.reshape(new_data.shape[0], 1, new_data.shape[1])
+    print(input.shape)
+
+    model = load_model('2022-04-25-01-28-model.h5')
+
+    # 一筆一筆吃testing data
+    # 我們先打包完ㄌ，但沒有吃到後面的資料應該不算作弊八==
+    for i in range(len(input)):
+        tmp = input[i]  # 因為第i筆已經包含前6天的資料，所以抓第i筆就夠了.
+        tmp = tmp.reshape(1, 1, 24)
+        # 現在的y就是第i+1~i+10的預測值
+        y = model.predict(tmp)
+        
+        # 把值翻回來
+        y = np.concatenate((y, input[i]), axis=1)  
+        y = np.delete(y, [24, 25, 26, 27, 28, 29, 30, 31, 32, 33])
+        y = y.reshape(1, 24)    # reshape才可以丟ㄉ進scaler
+        inv_y = scaler.inverse_transform(y)
+        print(inv_y[0, :10])    # 後10天的預測值
+
+        ### 剩下交給你了
+
+
+
 # 我自己寫的
-
-
 def model_predict(testing_data):
     model = load_model('2022-04-22-17-29-model.h5')
     testing_data = testing_data.reshape(
@@ -146,28 +179,28 @@ if __name__ == '__main__':
 
     # The following part is an example.
     # You can modify it at will.
-    training_data = load_data(args.training)
-    testing_data = load_data(args.testing)
-
-    # Normalization.
-
+    training = load_data(args.training)
+    testing = load_data(args.testing)
+    
+    # print(type(training_data))
+    
     # Transform data to supervised series.
-    training_data = series_to_supervised(training_data, 1, 10, True)
-    training_data.drop(training_data.columns[[5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 6, 10, 14,
-                       18, 22, 26, 30, 34, 38, 42, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43]], axis=1, inplace=True)
-
-    testing_data = series_to_supervised(testing_data, 1, 10, True)
-    testing_data.drop(testing_data.columns[[5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 6, 10, 14,
-                      18, 22, 26, 30, 34, 38, 42, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43]], axis=1, inplace=True)
+    training_data = series_to_supervised(training, 6, 10, True)
+    # training_data.drop(training_data.columns[[5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 6, 10, 14,
+    #                    18, 22, 26, 30, 34, 38, 42, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43]], axis=1, inplace=True)
+    training_data.drop(training_data.columns[[25,26,27,29,30,31,33,34,35,37,38,39,41,42,43,45,46,47,49,50,51,53,54,55,57,58,59,61,62,63]], axis=1, inplace=True)
+    testing_data = series_to_supervised(testing, 6, 10, True)
+    testing_data.drop(testing_data.columns[[25,26,27,29,30,31,33,34,35,37,38,39,41,42,43,45,46,47,49,50,51,53,54,55,57,58,59,61,62,63]], axis=1, inplace=True)
+    # Normalization
     training_data = scaler.fit_transform(training_data)
-    testing_data = scaler.fit_transform(testing_data)
-
+    testing_data = scaler.fit_transform(training_data)
+   
     # Train or Test the Model.
     # modelTraining(training_data)
-
     # modelPredict(testing_data)
-
+    howToUse(training, testing)
     # train和test串在一起
+    """
     testing_data = load_data(args.testing)
     training_data = load_data(args.training)
     new_test = np.concatenate([training_data, testing_data])
@@ -231,3 +264,5 @@ if __name__ == '__main__':
     print(signal_buy)
     print(signal_sell)
     # 大賠特賠
+
+    """
